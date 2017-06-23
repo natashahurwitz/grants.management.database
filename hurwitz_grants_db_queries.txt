@@ -1,0 +1,255 @@
+#author Natasha Hurwitz
+#The following file accompanies grants_management_db_2 which was created for the final project in INST733 SG01 Spring 2016, Database Design, Dr. Vidat Diker, UMD
+
+#a
+#This query lists the TSNRP Grant Number, Amendment Type and Terms of the Amendment
+#It answers the first question in the project proposal
+#Added as view a_grant_amendments
+#Requirements A, D
+CREATE VIEW a_Grant_Amendments AS
+
+SELECT gp.TSNRP_Number, gm.Amendment_Type, gm.Terms_of_Modification
+
+FROM grant_project gp INNER JOIN  grant_modification gm
+
+ON gm.Grant_Project_TSNRP_Number=gp.TSNRP_Number;
+
+#a2
+#This query lists the the date the award is funded and each amendment in a separate line.
+#The goal is to get this all on one line for each grant number.  I tried to use the method for subquery on page 271 of the text, but could not get it working.
+#Requirement A, D
+CREATE VIEW a2_Dates_Funded_Mods AS
+SELECT gp.TSNRP_Number, gm.Amendment_Type, gm.Terms_of_Modification, gp.Award_Start_Date AS date_funded, gm.Date_Final_Signature AS amendment_date
+
+FROM grant_project gp INNER JOIN  grant_modification gm
+
+ON gm.Grant_Project_TSNRP_Number=gp.TSNRP_Number;
+
+#a3
+#This query will give the total funding received by each service branch.
+#Answers proposal question.  
+#Requirements A, B, C, D
+CREATE VIEW a3_Funding_By_Service AS
+
+SELECT p.Service_Branch, ROUND(sum(b.Total_Costs)) AS Total_Funding
+
+FROM personnel p JOIN pi pi
+ON p.idPersonnel=pi.Personnel_idPersonnel
+
+JOIN grant_project gp
+
+ON pi.Personnel_idPersonnel=gp.PI_Personnel_idPersonnel
+
+JOIN Budget b 
+
+ON gp.Budget_Budgetcol=Budgetcol
+
+GROUP BY Service_Branch
+
+ORDER BY Service_Branch;
+
+#a4
+#Similar to a3 except this one returns only the records for 2015.  This query only returns one row because only the USA (Army) PI's received funding in 2015 according to the sample data.
+#Answers a proposal question
+#Requirements A, B, C, D
+CREATE VIEW a4_Funding_By_Service_2015 AS
+
+SELECT p.Service_Branch, ROUND(sum(b.Total_Costs)) AS Total_Funding
+
+FROM personnel p JOIN pi pi
+ON p.idPersonnel=pi.Personnel_idPersonnel
+
+JOIN grant_project gp
+
+ON pi.Personnel_idPersonnel=gp.PI_Personnel_idPersonnel
+
+JOIN Budget b 
+
+ON gp.Budget_Budgetcol=Budgetcol
+
+WHERE gp.fiscal_year=2015
+GROUP BY Service_Branch
+
+ORDER BY Service_Branch;
+
+#a5
+#This query will give the total funding and total number of awards by service branch.
+#Answers proposal question.
+#Requirements A, B, C, D
+CREATE VIEW a5_Service_Branch_Totals_And_Counts AS
+
+SELECT p.Service_Branch, ROUND(sum(b.Total_Costs)) AS Total_Funding
+, COUNT(p.Service_Branch)
+FROM personnel p JOIN pi pi
+
+ON p.idPersonnel=pi.Personnel_idPersonnel
+
+JOIN grant_project gp
+
+ON pi.Personnel_idPersonnel=gp.PI_Personnel_idPersonnel
+
+JOIN Budget b 
+ON gp.Budget_Budgetcol=Budgetcol
+
+GROUP BY Service_Branch
+
+ORDER BY Service_Branch;
+
+#a6
+#This query gives the PI last name, the total amount of funding and the number of funded projects for each PI.
+#It is similar to query a5.
+#It is not an interesting result because each PI was only funded once in the sample data.
+#Requirements A, B, C, D
+CREATE VIEW a6_PI_Funding_Totals_and_Counts AS
+
+SELECT p.LName, ROUND(sum(b.Total_Costs)) AS Total_Funding, COUNT(p.LName)
+
+FROM personnel p JOIN pi pi
+
+ON p.idPersonnel=pi.Personnel_idPersonnel
+JOIN grant_project gp
+
+ON pi.Personnel_idPersonnel=gp.PI_Personnel_idPersonnel
+
+JOIN Budget b 
+ON gp.Budget_Budgetcol=Budgetcol
+
+GROUP BY p.LName
+
+ORDER BY p.LName;
+
+#a7
+#This query lists the grant number, a key personnel and the PI associated with that grant number.  It can be used to see if a PI and key personnel have worked together.
+#It answers one of the Project Proposal questions.
+#Requirements A, B, D
+CREATE VIEW a7_PIs_with_KP AS
+
+SELECT gp.TSNRP_Number, concat(p2.Rank_Title, ' ', p2.FName, ' ', p2.LName) AS KP_Name,
+concat(p1.Rank_Title, ' ', p1.FName, ' ', p1.LName) AS PI_Name
+
+FROM personnel p1 INNER JOIN pi pi 
+ON p1.idPersonnel = pi.personnel_idPersonnel 
+
+LEFT JOIN grant_project gp 
+ON pi.personnel_idPersonnel = gp.PI_personnel_idPersonnel
+
+INNER JOIN key_personnel kp ON gp.TSNRP_Number = kp.Grant_Project_TSNRP_Number
+
+INNER JOIN personnel p2 ON  kp.personnel_idPersonnel = p2.idPersonnel
+
+WHERE kp.personnel_idPersonnel != pi.personnel_idPersonnel 
+
+#1
+#This query lists the TSNRP Grant Number, Grantee Organization and Fiscal Year in order of Grantee Organization Name
+#Added as view grantee_organization_with_grants
+#Requirements A, B, D
+CREATE VIEW grantee_organization_with_grants AS
+
+SELECT gp.TSNRP_Number, go.GO_Name AS grantee_organization, gp.Fiscal_Year
+
+FROM grant_project gp INNER JOIN grantee_organization go 
+ON gp.Grantee_Organization_idGrantee_Organization=go.idGrantee_Organization
+
+GROUP BY go.GO_Name
+
+ORDER BY go.GO_Name;
+
+#2
+#This query will count the number of key personnel at each duty station where key personnel are stationed.
+#Added as view key_personnel_at_duty_station
+#Requirements A, B, C, D
+CREATE VIEW key_personnel_at_duty_stations AS
+
+SELECT ds.DS_Name, count(kp.Duty_Station_idDuty_Station) AS number_of_Key_Personnel
+
+FROM duty_station ds INNER JOIN key_personnel kp
+
+ON kp.Duty_Station_idDuty_Station=ds.idDuty_Station
+
+GROUP BY DS_Name
+
+ORDER BY DS_Name;
+
+#3
+#This query lists the TSNRP Grant Number, and the Key Personnel associated with the grant number, ordered by grant number
+#Added as view key_personnel_by_grant_number
+#Requirements A, B, D
+CREATE VIEW key_personnel_by_grant_number AS
+
+SELECT gp.TSNRP_Number, concat(p.Rank_Title, ' ', p.FName, ' ', p.LName) AS KP_Name
+
+FROM (personnel p INNER JOIN key_personnel kp 
+ON  p.idPersonnel=kp.Personnel_idPersonnel) 
+LEFT JOIN grant_project gp ON kp.Grant_Project_TSNRP_Number=gp.TSNRP_Number
+
+ORDER BY TSNRP_Number;
+
+#4
+#this query reports the original budget amount and the budget amount with all additional funds reported as "original_plus_additional"
+#Added as view original_plus_additional
+#Requirements A, B, C
+SELECT gp.TSNRP_Number, o.Total_Costs AS original_budget, ROUND(sum(o.Total_Costs+3*a.Total_Costs)/3) AS original_plus_additional
+
+FROM grant_project gp, budget o, additional_funds a
+
+WHERE gp.Budget_Budgetcol=o.Budgetcol AND o.Budgetcol=a.Budget_Budgetcol
+
+GROUP BY gp.TSNRP_Number;
+
+#5
+#This query lists the PI's Rank, First and Last Name in one field, then phone number, duty station name and duty station city
+#Added as view pi_phone_number_duty_station
+#Requirements A, B, D
+CREATE VIEW PI_Phone_Number_Duty_Station AS
+
+SELECT concat(p.Rank_Title, ' ', p.FName, ' ', p.LName) AS PI_Name, PI_Phone_Number, DS_Name AS Duty_Station, DS_City AS Duty_Station_City
+
+FROM (personnel p INNER JOIN PI pi 
+ON  p.idPersonnel=pi.Personnel_idPersonnel) 
+INNER JOIN Duty_Station ds ON ds.idDuty_Station=pi.Duty_Station_idDuty_Station
+
+GROUP BY p.LName
+ORDER BY p.LName;
+
+#6
+#this query reports the TSNRP Grant Number, Project Title and PI Last Name
+#Added as view project_with_pis
+#Requirements A, B
+SELECT TSNRP_Number, Project_Title, LName 
+FROM grant_project gp, personnel p 
+WHERE gp.PI_Personnel_idPersonnel=p.idPersonnel;
+
+#7
+#This query reports the TSNRP Grant Number, PI last name, and Award end date.  The report could be used to contact PI's when their end date is approaching.
+#Added as view subquery_pi_with_end_date
+#Requirements A, C, E
+CREATE VIEW subquery_pi_with_end_date AS
+
+SELECT gp.TSNRP_Number, gp.Award_End_Date, p.LName
+
+FROM grant_project gp, personnel p, PI pi
+
+WHERE p.LName IN
+	
+	(SELECT p.LName
+    
+	FROM personnel p
+    
+	WHERE p.idPersonnel=pi.Personnel_idPersonnel AND pi.Personnel_idPersonnel=gp.PI_Personnel_idPersonnel)
+
+GROUP BY gp.TSNRP_Number;
+
+#8
+#This query lists the Total Funding by fiscal year.
+#Added as view total_funding_by_year
+#Requirements A, B, C, D
+CREATE VIEW total_funding_by_year AS
+
+SELECT Fiscal_Year AS FY, ROUND(sum(b.Total_Costs)) AS Total_Funding_By_Year
+
+FROM grant_project gp INNER JOIN budget b 
+ON gp.budget_Budgetcol=b.Budgetcol
+
+GROUP BY Fiscal_Year
+
+ORDER BY Fiscal_Year;
